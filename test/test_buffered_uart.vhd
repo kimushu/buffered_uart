@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.math_real.all;
 
 entity test_buffered_uart is
 end entity;
@@ -9,13 +10,13 @@ architecture behavior of test_buffered_uart is
     component buffered_uart is
         generic (
             DEVICE_FAMILY   : string                    := "";
-            CLOCK_FREQ      : integer                   := 50000000;
-            BAUDRATE        : integer                   := 115200;
-    --      DIVIDER_BITS    : integer range 1 to 16     := 8;
+            DIVIDER_BITS    : integer range 1 to 16     := 1;
+            DIVIDER_INIT    : integer range 1 to 65535  := 1;
+            DIVIDER_FIXED   : integer range 0 to 1      := 0;
             DATA_BITS       : integer range 5 to 9      := 8;
     --      PARITY          : string                    := "NONE";
     --      STOP_BITS       : string                    := "1";
-    --      FLOW_CONTROL    : string                    := "NONE";
+            RTSCTS_ENABLE   : integer range 0 to 1      := 0;
             RXFIFO_DEPTH    : integer                   := 128;
             TXFIFO_DEPTH    : integer                   := 128
         );
@@ -42,8 +43,9 @@ architecture behavior of test_buffered_uart is
     constant CLOCK_FREQ2    : integer := integer(real(CLOCK_FREQ1) * 1.05);
     constant CLOCK_PERIOD1  : time := (1000 ms / CLOCK_FREQ1);
     constant CLOCK_PERIOD2  : time := (1000 ms / CLOCK_FREQ2);
-    constant BAUDRATE1      : integer := (CLOCK_FREQ1 / 12);
-    constant BAUDRATE2      : integer := (CLOCK_FREQ2 / 12);
+    constant DIVIDER_INIT   : integer := 2;
+    constant DIVIDER_AFTER  : integer := 5;
+    constant DIVIDER_BITS   : integer := integer(ceil(log2(real(DIVIDER_AFTER+1))));
 
     constant DEVICE_FAMILY  : string := "Cyclone IV E";
 
@@ -152,12 +154,13 @@ begin
                     avs1_addr_reg <= "10";
                     avs1_read_reg <= '1';
                     wait until rising_edge(clk1_reg);
-                    avs1_addr_reg <= (others => 'X');
-                    avs1_read_reg <= '0';
                     wait until rising_edge(clk1_reg);
                     assert avs1_rdata_sig = (X"00" & TEST_DATA2(i))
                         report "dut1 received incorrect data"
                         severity failure;
+                    avs1_addr_reg <= (others => 'X');
+                    avs1_read_reg <= '0';
+                    wait until rising_edge(clk1_reg);
                     i := i + 1;
                 end if;
             end loop;
@@ -169,12 +172,13 @@ begin
             avs1_addr_reg <= "10";
             avs1_read_reg <= '1';
             wait until rising_edge(clk1_reg);
-            avs1_addr_reg <= (others => 'X');
-            avs1_read_reg <= '0';
             wait until rising_edge(clk1_reg);
             assert avs1_rdata_sig(15) = '1'
                 report "dut1 should assert RXF bit"
                 severity failure;
+            avs1_addr_reg <= (others => 'X');
+            avs1_read_reg <= '0';
+            wait until rising_edge(clk1_reg);
         end loop;
 
         assert false report "dut1 test OK" severity note;
@@ -211,12 +215,13 @@ begin
                     avs2_addr_reg <= "10";
                     avs2_read_reg <= '1';
                     wait until rising_edge(clk2_reg);
-                    avs2_addr_reg <= (others => 'X');
-                    avs2_read_reg <= '0';
                     wait until rising_edge(clk2_reg);
                     assert avs2_rdata_sig = (X"00" & TEST_DATA1(i))
                         report "dut2 received incorrect data"
                         severity failure;
+                    avs2_addr_reg <= (others => 'X');
+                    avs2_read_reg <= '0';
+                    wait until rising_edge(clk2_reg);
                     i := i + 1;
                 end if;
             end loop;
@@ -228,13 +233,14 @@ begin
             avs2_addr_reg <= "10";
             avs2_read_reg <= '1';
             wait until rising_edge(clk2_reg);
-            avs2_addr_reg <= (others => 'X');
-            avs2_read_reg <= '0';
             wait until rising_edge(clk2_reg);
             assert avs2_rdata_sig(15) = '1'
                 report "dut2 should assert RXF bit"
                 severity failure;
-        end loop;
+            avs2_addr_reg <= (others => 'X');
+            avs2_read_reg <= '0';
+            wait until rising_edge(clk2_reg);
+            end loop;
 
         assert false report "dut2 test OK" severity note;
         test_done2_reg <= true;
@@ -254,8 +260,11 @@ begin
     dut1 : buffered_uart
         generic map (
             DEVICE_FAMILY   => DEVICE_FAMILY,
-            CLOCK_FREQ      => CLOCK_FREQ1,
-            BAUDRATE        => BAUDRATE1,
+            DIVIDER_BITS    => DIVIDER_BITS,
+            DIVIDER_INIT    => DIVIDER_INIT,
+            DIVIDER_FIXED   => 0,
+            DATA_BITS       => 8,
+            RTSCTS_ENABLE   => 1,
             RXFIFO_DEPTH    => 4,
             TXFIFO_DEPTH    => 8
         )
@@ -280,8 +289,11 @@ begin
     dut2 : buffered_uart
         generic map (
             DEVICE_FAMILY   => DEVICE_FAMILY,
-            CLOCK_FREQ      => CLOCK_FREQ2,
-            BAUDRATE        => BAUDRATE2,
+            DIVIDER_BITS    => DIVIDER_BITS,
+            DIVIDER_INIT    => DIVIDER_INIT,
+            DIVIDER_FIXED   => 0,
+            DATA_BITS       => 8,
+            RTSCTS_ENABLE   => 1,
             RXFIFO_DEPTH    => 4,
             TXFIFO_DEPTH    => 8
         )

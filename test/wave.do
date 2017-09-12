@@ -13,7 +13,7 @@ add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/coe_rxd
 add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/coe_rts
 add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/rx_state_reg
 add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/rx_step0_reg
-add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/rx_step1_reg
+add wave -noupdate -expand -group dut1.rx /test_buffered_uart/dut1/rx_step2_reg
 add wave -noupdate -expand -group dut1.tx /test_buffered_uart/dut1/coe_txd
 add wave -noupdate -expand -group dut1.tx /test_buffered_uart/dut1/coe_cts
 add wave -noupdate -expand -group dut1.tx /test_buffered_uart/dut1/tx_state_reg
@@ -32,14 +32,14 @@ add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/coe_rxd
 add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/coe_rts
 add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/rx_state_reg
 add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/rx_step0_reg
-add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/rx_step1_reg
+add wave -noupdate -expand -group dut2.rx /test_buffered_uart/dut2/rx_step2_reg
 add wave -noupdate -expand -group dut2.tx /test_buffered_uart/dut2/coe_txd
 add wave -noupdate -expand -group dut2.tx /test_buffered_uart/dut2/coe_cts
 add wave -noupdate -expand -group dut2.tx /test_buffered_uart/dut2/tx_state_reg
 add wave -noupdate -expand -group dut2.tx /test_buffered_uart/dut2/tx_step0_reg
 add wave -noupdate -expand -group dut2.tx /test_buffered_uart/dut2/tx_step2_reg
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {539435628 ps} 0}
+WaveRestoreCursors {{Cursor 1} {429581464 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
@@ -55,4 +55,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {894647139 ps} {1061212372 ps}
+WaveRestoreZoom {404782571 ps} {564784470 ps}

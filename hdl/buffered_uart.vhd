@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library altera_mf;
 use altera_mf.altera_mf_components.all;
@@ -7,13 +8,13 @@ use altera_mf.altera_mf_components.all;
 entity buffered_uart is
     generic (
         DEVICE_FAMILY   : string                    := "";
-        CLOCK_FREQ      : integer                   := 50000000;
-        BAUDRATE        : integer                   := 115200;
---      DIVIDER_BITS    : integer range 1 to 16     := 8;
+        DIVIDER_BITS    : integer range 1 to 16     := 1;
+        DIVIDER_INIT    : integer range 1 to 65535  := 1;
+        DIVIDER_FIXED   : integer range 0 to 1      := 0;
         DATA_BITS       : integer range 5 to 9      := 8;
 --      PARITY          : string                    := "NONE";
 --      STOP_BITS       : string                    := "1";
---      FLOW_CONTROL    : string                    := "NONE";
+        RTSCTS_ENABLE   : integer range 0 to 1      := 0;
         RXFIFO_DEPTH    : integer                   := 128;
         TXFIFO_DEPTH    : integer                   := 128
     );
@@ -66,29 +67,24 @@ end entity;
 
 architecture rtl of buffered_uart is
 
-    constant DIVIDER_MAX : integer := integer(real(CLOCK_FREQ) / 4.0 / real(BAUDRATE) - 1.0);
-
     type phase_t is (PHASE0, PHASE1, PHASE2, PHASE3);
     type rxstate_t is (RXS_IDLE, RXS_START, RXS_DATA, RXS_STOP);
     type txstate_t is (TXS_IDLE, TXS_START, TXS_DATA, TXS_STOP);
-    subtype divider_t is integer range 0 to DIVIDER_MAX;
+    subtype divider_t is integer range 0 to ((2 ** DIVIDER_BITS) - 1);
     subtype bitcnt_t is integer range 0 to DATA_BITS;
     subtype data_t is std_logic_vector(DATA_BITS-1 downto 0);
 
+    signal div_max_reg      : divider_t;
     signal rsel_sts_sig     : boolean;
     signal rsel_int_sig     : boolean;
     signal rsel_dat_sig     : boolean;
---  signal rsel_div_sig     : boolean;
-
-    signal rsel_sts_1d_reg  : boolean;
-    signal rsel_int_1d_reg  : boolean;
-    signal rsel_dat_1d_reg  : boolean;
---  signal rsel_div_1d_reg  : boolean;
+    signal rsel_div_sig     : boolean;
+    signal avs_read_1d_reg  : std_logic;
 
     signal rval_sts_sig : std_logic_vector(15 downto 0);
     signal rval_int_sig : std_logic_vector(15 downto 0);
     signal rval_dat_sig : std_logic_vector(15 downto 0);
---  signal rval_div_sig : std_logic_vector(15 downto 0);
+    signal rval_div_sig : std_logic_vector(15 downto 0);
 
     signal irxne_reg    : std_logic;
     signal irxf_reg     : std_logic;
@@ -145,49 +141,33 @@ architecture rtl of buffered_uart is
 begin
 
     -- Register select
-    rsel_sts_sig    <= (avs_address = "00");
-    rsel_int_sig    <= (avs_address = "01");
-    rsel_dat_sig    <= (avs_address = "10");
---  rsel_div_sig    <= (avs_address = "11");
+    rsel_sts_sig <= (avs_address = "00");
+    rsel_int_sig <= (avs_address = "01");
+    rsel_dat_sig <= (avs_address = "10");
+    rsel_div_sig <= (avs_address = "11");
 
     -- Register read
     avs_readdata    <=
-        rval_dat_sig when rsel_dat_1d_reg else
-        rval_int_sig when rsel_int_1d_reg else
-        rval_sts_sig; -- when rsel_sts_1d_reg else
---      rval_div_sig;
+        rval_dat_sig when rsel_dat_sig else
+        rval_int_sig when rsel_int_sig else
+        rval_div_sig when rsel_div_sig else
+        rval_sts_sig;
 
     process (clk, reset)
     begin
         if (reset = '1') then
-            rsel_sts_1d_reg <= false;
-            rsel_int_1d_reg <= false;
-            rsel_dat_1d_reg <= false;
---          rsel_div_1d_reg <= false;
+            avs_read_1d_reg <= '0';
         elsif (rising_edge(clk)) then
-            rsel_sts_1d_reg <= rsel_sts_sig;
-            rsel_int_1d_reg <= rsel_int_sig;
-            rsel_dat_1d_reg <= rsel_dat_sig;
---          rsel_div_1d_reg <= rsel_div_sig;
+            avs_read_1d_reg <= avs_read;
         end if;
     end process;
 
+    -- Status register
     rval_sts_sig <=
         rxe_sig & rxne_sig & rxf_sig & rxhf_sig &
         txf_sig & txnf_sig & txe_sig & txhe_sig &
         rx_ovf_reg & "000" &
         "0000";
-
-    rval_int_sig <=
-        '0' & irxne_reg & irxf_reg & irxhf_reg &
-        '0' & itxnf_reg & itxe_reg & itxhe_reg &
-        irovf_reg & "000" &
-        "0000";
-
-    rval_dat_sig(15) <= rxe_1d_reg;
-    rval_dat_sig(14 downto DATA_BITS) <= (others => '0');
-    rval_dat_sig(DATA_BITS-1 downto 0) <= rx_rdata_sig;
---  rval_div_sig <= (others => '0');
 
     -- Interrupt mask bits
     process (clk, reset)
@@ -215,6 +195,12 @@ begin
         end if;
     end process;
 
+    rval_int_sig <=
+        '0' & irxne_reg & irxf_reg & irxhf_reg &
+        '0' & itxnf_reg & itxe_reg & itxhe_reg &
+        irovf_reg & "000" &
+        "0000";
+
     -- Interrupt sending
     irq_sig <=
         (irxne_reg = '1' and rxne_sig = '1') or
@@ -228,20 +214,39 @@ begin
         '0' when (irqe_reg = '0') else
         '0' when irq_sig else '1';
 
-    -- Divider
-
-    -- Data receive
+    -- Data read
+    rval_dat_sig(15) <= rxe_1d_reg;
+    rval_dat_sig(14 downto DATA_BITS) <= (others => '0');
+    rval_dat_sig(DATA_BITS-1 downto 0) <= rx_rdata_sig;
 
     -- ================================================================
     --   Divider
     -- ================================================================
+    fixed_div: if (DIVIDER_FIXED = 1) generate
+        div_max_reg <= DIVIDER_INIT;
+    end generate;
+    variable_div: if (DIVIDER_FIXED = 0) generate
+        process (clk, reset)
+        begin
+            if (reset = '1') then
+                div_max_reg <= DIVIDER_INIT;
+            elsif (rising_edge(clk)) then
+                if (rsel_div_sig and (avs_write = '1')) then
+                    div_max_reg <= to_integer(unsigned(avs_writedata(DIVIDER_BITS-1 downto 0)));
+                end if;
+            end if;
+        end process;
+    end generate;
+
+    rval_div_sig <= std_logic_vector(to_unsigned(div_max_reg, rval_div_sig'length));
+
     process (clk, reset)
     begin
         if (reset = '1') then
-            div_reg <= DIVIDER_MAX;
+            div_reg <= DIVIDER_INIT;
         elsif (rising_edge(clk)) then
             if (div_reg = 0) then
-                div_reg <= DIVIDER_MAX;
+                div_reg <= div_max_reg;
             else
                 div_reg <= div_reg - 1;
             end if;
@@ -348,7 +353,6 @@ begin
     begin
         if (reset = '1') then
             rx_ovf_reg <= '0';
-            rts_reg    <= '1';
             rxe_1d_reg <= '0';
         elsif (rising_edge(clk)) then
             if ((rx_wreq_reg = '1') and (rxf_sig = '1')) then
@@ -356,10 +360,24 @@ begin
             elsif (rsel_sts_sig and (avs_write = '1') and (avs_writedata(7) = '1')) then
                 rx_ovf_reg <= '0';
             end if;
-            rts_reg    <= not rxf_sig;
             rxe_1d_reg <= rxe_sig;
         end if;
     end process;
+
+    -- RTS generation
+    rts: if (RTSCTS_ENABLE = 1) generate
+        process (clk, reset)
+        begin
+            if (reset = '1') then
+                rts_reg <= '1';
+            elsif (rising_edge(clk)) then
+                rts_reg <= not rxf_sig;
+            end if;
+        end process;
+    end generate;
+    no_rts: if (RTSCTS_ENABLE = 0) generate
+        rts_reg <= '1';
+    end generate;
 
     -- Receiver state machine
     process (clk, reset)
@@ -390,7 +408,7 @@ begin
 
     -- Receiver data FIFO
     rx_wdata_sig <= rx_shift_reg;
-    rx_rreq_sig  <= '1' when (rsel_dat_sig and (avs_read = '1')) else '0';
+    rx_rreq_sig  <= '1' when (rsel_dat_sig and (avs_read = '1') and (avs_read_1d_reg = '0')) else '0';
     rxne_sig     <= not rxe_sig;
 
     u_rxfifo : scfifo
@@ -483,16 +501,22 @@ begin
 
     -- External signal
     coe_txd <= txd_reg;
-    process (clk, reset)
-    begin
-        if (reset = '1') then
-            cts_1d_reg <= '0';
-            cts_2d_reg <= '0';
-        elsif (rising_edge(clk)) then
-            cts_1d_reg <= coe_cts;
-            cts_2d_reg <= cts_1d_reg;
-        end if;
-    end process;
+
+    cts: if (RTSCTS_ENABLE = 1) generate
+        process (clk, reset)
+        begin
+            if (reset = '1') then
+                cts_1d_reg <= '0';
+                cts_2d_reg <= '0';
+            elsif (rising_edge(clk)) then
+                cts_1d_reg <= coe_cts;
+                cts_2d_reg <= cts_1d_reg;
+            end if;
+        end process;
+    end generate;
+    no_cts: if (RTSCTS_ENABLE = 0) generate
+        cts_2d_reg <= '1';
+    end generate;
 
     -- Transmitter state machine & output generator
     process (clk, reset)
