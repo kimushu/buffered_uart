@@ -74,65 +74,65 @@ architecture rtl of buffered_uart is
     subtype bitcnt_t is integer range 0 to DATA_BITS;
     subtype data_t is std_logic_vector(DATA_BITS-1 downto 0);
 
-    signal div_max_reg      : divider_t;
+    signal div_max_reg      : divider_t := DIVIDER_INIT;
     signal rsel_sts_sig     : boolean;
     signal rsel_int_sig     : boolean;
     signal rsel_dat_sig     : boolean;
     signal rsel_div_sig     : boolean;
-    signal avs_read_1d_reg  : std_logic;
+    signal avs_read_1d_reg  : std_logic := '0';
 
     signal rval_sts_sig : std_logic_vector(15 downto 0);
     signal rval_int_sig : std_logic_vector(15 downto 0);
     signal rval_dat_sig : std_logic_vector(15 downto 0);
     signal rval_div_sig : std_logic_vector(15 downto 0);
 
-    signal irxne_reg    : std_logic;
-    signal irxf_reg     : std_logic;
-    signal irxhf_reg    : std_logic;
-    signal itxnf_reg    : std_logic;
-    signal itxe_reg     : std_logic;
-    signal itxhe_reg    : std_logic;
-    signal irovf_reg    : std_logic;
-    signal irqe_reg     : std_logic;
+    signal irxne_reg    : std_logic := '0';
+    signal irxf_reg     : std_logic := '0';
+    signal irxhf_reg    : std_logic := '0';
+    signal itxnf_reg    : std_logic := '0';
+    signal itxe_reg     : std_logic := '0';
+    signal itxhe_reg    : std_logic := '0';
+    signal irovf_reg    : std_logic := '0';
+    signal irqe_reg     : std_logic := '0';
     signal irq_sig      : boolean;
 
-    signal div_reg      : divider_t;
+    signal div_reg      : divider_t := DIVIDER_INIT;
 
-    signal rx_phase_reg : phase_t;
-    signal rx_step0_reg : boolean;
-    signal rx_step2_reg : boolean;
-    signal rx_state_reg : rxstate_t;
-    signal rx_bits_reg  : bitcnt_t;
-    signal rx_shift_reg : data_t;
-    signal rts_reg      : std_logic;
-    signal rxd_1d_reg   : std_logic;
-    signal rxd_2d_reg   : std_logic;
-    signal rx_ovf_reg   : std_logic;
+    signal rx_phase_reg : phase_t   := PHASE0;
+    signal rx_step0_reg : boolean   := false;
+    signal rx_step2_reg : boolean   := false;
+    signal rx_state_reg : rxstate_t := RXS_IDLE;
+    signal rx_bits_reg  : bitcnt_t  := DATA_BITS;
+    signal rx_shift_reg : data_t    := (others => '0');
+    signal rts_reg      : std_logic := '1';
+    signal rxd_1d_reg   : std_logic := '0';
+    signal rxd_2d_reg   : std_logic := '0';
+    signal rx_ovf_reg   : std_logic := '0';
 
     signal rx_wdata_sig : data_t;
-    signal rx_wreq_reg  : std_logic;
+    signal rx_wreq_reg  : std_logic := '0';
     signal rx_rdata_sig : data_t;
     signal rx_rreq_sig  : std_logic;
     signal rxe_sig      : std_logic;
-    signal rxe_1d_reg   : std_logic;
+    signal rxe_1d_reg   : std_logic := '0';
     signal rxne_sig     : std_logic;
     signal rxf_sig      : std_logic;
     signal rxhf_sig     : std_logic;
 
-    signal tx_phase_reg : phase_t;
-    signal tx_step0_reg : boolean;
-    signal tx_step2_reg : boolean;
-    signal tx_state_reg : txstate_t;
-    signal tx_bits_reg  : bitcnt_t;
-    signal tx_shift_reg : data_t;
-    signal txd_reg      : std_logic;
-    signal cts_1d_reg   : std_logic;
-    signal cts_2d_reg   : std_logic;
+    signal tx_phase_reg : phase_t   := PHASE0;
+    signal tx_step0_reg : boolean   := false;
+    signal tx_step2_reg : boolean   := false;
+    signal tx_state_reg : txstate_t := TXS_IDLE;
+    signal tx_bits_reg  : bitcnt_t  := DATA_BITS;
+    signal tx_shift_reg : data_t    := (others => '0');
+    signal txd_reg      : std_logic := '1';
+    signal cts_1d_reg   : std_logic := '0';
+    signal cts_2d_reg   : std_logic := '0';
 
     signal tx_wdata_sig : data_t;
     signal tx_wreq_sig  : std_logic;
     signal tx_rdata_sig : data_t;
-    signal tx_rreq_reg  : std_logic;
+    signal tx_rreq_reg  : std_logic := '0';
     signal txf_sig      : std_logic;
     signal txnf_sig     : std_logic;
     signal txe_sig      : std_logic;
