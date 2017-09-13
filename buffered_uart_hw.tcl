@@ -39,33 +39,33 @@ add_fileset_file buffered_uart.vhd VHDL PATH hdl/buffered_uart.vhd TOP_LEVEL_FIL
 # 
 # parameters
 # 
-add_parameter DEVICE_FAMILY string "Unknown"
+add_parameter DEVICE_FAMILY STRING "Unknown"
 set_parameter_property DEVICE_FAMILY SYSTEM_INFO {DEVICE_FAMILY}
 set_parameter_property DEVICE_FAMILY HDL_PARAMETER true
 set_parameter_property DEVICE_FAMILY ENABLED false
 set_parameter_property DEVICE_FAMILY VISIBLE false
 
-add_parameter DIVIDER_BITS integer 1
+add_parameter DIVIDER_BITS INTEGER 1
 set_parameter_property DIVIDER_BITS DERIVED true
 set_parameter_property DIVIDER_BITS HDL_PARAMETER true
 set_parameter_property DIVIDER_BITS VISIBLE false
 
-add_parameter DIVIDER_INIT integer 1
+add_parameter DIVIDER_INIT INTEGER 1
 set_parameter_property DIVIDER_INIT DERIVED true
 set_parameter_property DIVIDER_INIT HDL_PARAMETER true
 set_parameter_property DIVIDER_INIT VISIBLE false
 
-add_parameter DIVIDER_FIXED integer 0
+add_parameter DIVIDER_FIXED INTEGER 0
 set_parameter_property DIVIDER_FIXED DERIVED true
 set_parameter_property DIVIDER_FIXED HDL_PARAMETER true
 set_parameter_property DIVIDER_FIXED VISIBLE false
 
-add_parameter RTSCTS_ENABLE integer 0
+add_parameter RTSCTS_ENABLE INTEGER 0
 set_parameter_property RTSCTS_ENABLE DERIVED true
 set_parameter_property RTSCTS_ENABLE HDL_PARAMETER true
 set_parameter_property RTSCTS_ENABLE VISIBLE false
 
-add_parameter CLOCK_FREQ integer
+add_parameter CLOCK_FREQ INTEGER 0
 set_parameter_property CLOCK_FREQ DISPLAY_NAME "Clock"
 set_parameter_property CLOCK_FREQ UNITS Hertz
 set_parameter_property CLOCK_FREQ SYSTEM_INFO {CLOCK_RATE clock}
@@ -74,7 +74,8 @@ set_parameter_property CLOCK_FREQ ENABLED false
 
 add_parameter LIST_BAUD INTEGER 115200
 set_parameter_property LIST_BAUD DISPLAY_NAME "Baudrate"
-set_parameter_property LIST_BAUD ALLOWED_RANGES {"0:Custom" "9600:9600 bps" "19200:19200 bps" "38400:38400 bps" "57600:57600 bps" "115200:115200 bps" "230400:230400 bps" "460800:460800 bps" "921600:921600 bps"}
+set_parameter_property LIST_BAUD DISPLAY_UNITS "bps"
+set_parameter_property LIST_BAUD ALLOWED_RANGES {"0:Custom" "9600" "19200" "38400" "57600" "115200" "230400" "460800" "921600"}
 set_parameter_property LIST_BAUD HDL_PARAMETER false
 
 add_parameter CUSTOM_BAUD INTEGER 115200
@@ -82,7 +83,7 @@ set_parameter_property CUSTOM_BAUD DISPLAY_NAME "Custom baudrate"
 set_parameter_property CUSTOM_BAUD UNITS BitsPerSecond
 set_parameter_property CUSTOM_BAUD HDL_PARAMETER false
 
-add_parameter BAUD_ERROR FLOAT NaN
+add_parameter BAUD_ERROR FLOAT Inf
 set_parameter_property BAUD_ERROR DERIVED true
 set_parameter_property BAUD_ERROR DISPLAY_NAME "Error"
 set_parameter_property BAUD_ERROR DISPLAY_UNITS "%"
@@ -104,15 +105,15 @@ set_parameter_property DATA_BITS DISPLAY_NAME "Data bits"
 set_parameter_property DATA_BITS UNITS None
 set_parameter_property DATA_BITS HDL_PARAMETER true
 
-add_parameter RXFIFO_DEPTH INTEGER 128
-set_parameter_property RXFIFO_DEPTH DISPLAY_NAME "RX FIFO depth"
-set_parameter_property RXFIFO_DEPTH DISPLAY_UNITS "words"
-set_parameter_property RXFIFO_DEPTH HDL_PARAMETER true
+add_parameter RX_DEPTH_BITS INTEGER 7
+set_parameter_property RX_DEPTH_BITS DISPLAY_NAME "RX FIFO depth"
+set_parameter_property RX_DEPTH_BITS HDL_PARAMETER true
+set_parameter_property RX_DEPTH_BITS ALLOWED_RANGES {"2:4 words" "3:8 words" "4:16 words" "5:32 words" "6:64 words" "7:128 words" "8:256 words" "9:512 words" "10:1024 words" "11:2048 words" "12:4096 words" "13:8192 words" "14:16384 words" "15:32768 words" "16:65536 words" "17:131072 words"}
 
-add_parameter TXFIFO_DEPTH INTEGER 128
-set_parameter_property TXFIFO_DEPTH DISPLAY_NAME "TX FIFO depth"
-set_parameter_property TXFIFO_DEPTH DISPLAY_UNITS "words"
-set_parameter_property TXFIFO_DEPTH HDL_PARAMETER true
+add_parameter TX_DEPTH_BITS INTEGER 7
+set_parameter_property TX_DEPTH_BITS DISPLAY_NAME "TX FIFO depth"
+set_parameter_property TX_DEPTH_BITS HDL_PARAMETER true
+set_parameter_property TX_DEPTH_BITS ALLOWED_RANGES {"2:4 words" "3:8 words" "4:16 words" "5:32 words" "6:64 words" "7:128 words" "8:256 words" "9:512 words" "10:1024 words" "11:2048 words" "12:4096 words" "13:8192 words" "14:16384 words" "15:32768 words" "16:65536 words" "17:131072 words"}
 
 add_parameter USE_RTSCTS BOOLEAN true
 set_parameter_property USE_RTSCTS DISPLAY_NAME "Use RTS/CTS"
@@ -128,8 +129,8 @@ add_display_item {} {Baudrate settings} GROUP
 
 add_display_item {Basic settings} DATA_BITS PARAMETER
 add_display_item {Basic settings} USE_RTSCTS PARAMETER
-add_display_item {Basic settings} RXFIFO_DEPTH PARAMETER
-add_display_item {Basic settings} TXFIFO_DEPTH PARAMETER
+add_display_item {Basic settings} RX_DEPTH_BITS PARAMETER
+add_display_item {Basic settings} TX_DEPTH_BITS PARAMETER
 
 add_display_item {Baudrate settings} CLOCK_FREQ PARAMETER
 add_display_item {Baudrate settings} LIST_BAUD PARAMETER
@@ -262,14 +263,6 @@ add_interface_port flow coe_cts cts Input 1
 # Callbacks
 # 
 
-proc to_bool {e} {
-    if {[expr $e] == 0} {
-        return "false"
-    } else {
-        return "true"
-    }
-}
-
 set_module_property ELABORATION_CALLBACK elaboration_callback
 proc elaboration_callback {} {
     # Switch flow control export
@@ -332,4 +325,14 @@ proc elaboration_callback {} {
     }
     set_parameter_value BAUD_ERROR $baudErr
     set_display_item_property INFO_BAUD TEXT "<html>$info</html>"
+}
+
+set_module_property VALIDATION_CALLBACK validate_callback
+proc validate_callback {} {
+    # Define macros for BSP
+    set_module_assignment embeddedsw.CMacro.DATA_BITS [get_parameter_value DATA_BITS]
+    set_module_assignment embeddedsw.CMacro.DIVIDER_BITS [get_parameter_value DIVIDER_BITS]
+    set_module_assignment embeddedsw.CMacro.FIXED_BAUD [get_parameter_value DIVIDER_FIXED]
+    set_module_assignment embeddedsw.CMacro.RX_DEPTH_BITS [get_parameter_value RX_DEPTH_BITS]
+    set_module_assignment embeddedsw.CMacro.TX_DEPTH_BITS [get_parameter_value TX_DEPTH_BITS]
 }
