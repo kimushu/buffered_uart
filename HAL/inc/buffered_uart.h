@@ -11,6 +11,7 @@ extern "C" {
 
 typedef struct buffered_uart_state_s {
     alt_u32 base;
+    alt_u16 dataMask;
     volatile alt_u16 causes;
     ALT_SEM(sem);
 } buffered_uart_state;
@@ -34,6 +35,7 @@ extern void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_i
 #define BUFFERED_UART_STATE_INSTANCE_INITIALIZER(name) \
     { \
         name##_BASE, \
+        (1 << name##_DATA_BITS) - 1, \
         0, \
     }
 

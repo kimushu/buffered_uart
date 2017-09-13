@@ -56,20 +56,18 @@ int buffered_uart_close(buffered_uart_state *sp, int flags)
     return 0;
 }
 
-int buffered_uart_close_fd(alt_fd *fd)
-{
-    buffered_uart_dev *dev = (buffered_uart_dev *)fd->dev;
-    return buffered_uart_close(&dev->state, fd->fd_flags);
-}
-
 int buffered_uart_read(buffered_uart_state *sp, char *ptr, int len, int flags)
 {
     alt_irq_context context;
     alt_u32 base = sp->base;
     int actual = 0;
+    int paired = (sp->dataMask > 0xff);
 
+    if (paired) {
+        len /= 2;
+    }
     while (len > 0) {
-        alt_u32 data = IORD_BUFFERED_UART_DATA(base);
+        alt_u16 data = IORD_BUFFERED_UART_DATA(base);
 
         if (data & BUFFERED_UART_DATA_RXE_MSK) {
             if (flags & O_NONBLOCK) {
@@ -87,19 +85,16 @@ int buffered_uart_read(buffered_uart_state *sp, char *ptr, int len, int flags)
                 ALT_SEM_PEND(sp->sem, 0);
             } while ((sp->causes & BUFFERED_UART_STATUS_RXNE_MSK));
         } else {
-            *ptr++ = (char)(data & 0xff);
+            *ptr++ = (data & 0xff);
+            if (paired) {
+                *ptr++ = (data >> 8);
+            }
             --len;
             ++actual;
         }
     }
 
-    return actual;
-}
-
-int buffered_uart_read_fd(alt_fd *fd, char *ptr, int len)
-{
-    buffered_uart_dev *dev = (buffered_uart_dev *)fd->dev;
-    return buffered_uart_read(&dev->state, ptr, len, fd->fd_flags);
+    return paired ? (actual * 2) : actual;
 }
 
 int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int flags)
@@ -108,12 +103,20 @@ int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int f
     alt_u32 status;
     alt_u32 base = sp->base;
     int actual = 0;
+    int paired = (sp->dataMask > 0xff);
 
+    if (paired) {
+        len /= 2;
+    }
     while (len > 0) {
         context = alt_irq_disable_all();
         status = IORD_BUFFERED_UART_STATUS(base);
         if ((status & BUFFERED_UART_STATUS_TXF_MSK) == 0) {
-            IOWR_BUFFERED_UART_DATA(base, *ptr++);
+            alt_u16 value = *ptr++;
+            if (paired) {
+                value |= (*ptr++) << 8;
+            }
+            IOWR_BUFFERED_UART_DATA(base, value);
             alt_irq_enable_all(context);
             --len;
             ++actual;
@@ -134,7 +137,26 @@ int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int f
         }
     }
 
-    return actual;
+    return paired ? (actual * 2) : actual;
+}
+
+int buffered_uart_ioctl(buffered_uart_state *sp, int req, void *arg)
+{
+    return -ENOTSUP;
+}
+
+#ifndef ALT_USE_DIRECT_DRIVERS
+
+int buffered_uart_close_fd(alt_fd *fd)
+{
+    buffered_uart_dev *dev = (buffered_uart_dev *)fd->dev;
+    return buffered_uart_close(&dev->state, fd->fd_flags);
+}
+
+int buffered_uart_read_fd(alt_fd *fd, char *ptr, int len)
+{
+    buffered_uart_dev *dev = (buffered_uart_dev *)fd->dev;
+    return buffered_uart_read(&dev->state, ptr, len, fd->fd_flags);
 }
 
 int buffered_uart_write_fd(alt_fd *fd, const char *ptr, int len)
@@ -143,13 +165,10 @@ int buffered_uart_write_fd(alt_fd *fd, const char *ptr, int len)
     return buffered_uart_write(&dev->state, ptr, len, fd->fd_flags);
 }
 
-int buffered_uart_ioctl(buffered_uart_state *sp, int req, void *arg)
-{
-    return -ENOTSUP;
-}
-
 int buffered_uart_ioctl_fd(alt_fd *fd, int req, void *arg)
 {
     buffered_uart_dev *dev = (buffered_uart_dev *)fd->dev;
     return buffered_uart_ioctl(&dev->state, req, arg);
 }
+
+#endif  /* !ALT_USE_DIRECT_DRIVERS */
