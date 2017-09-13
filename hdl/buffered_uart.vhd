@@ -15,8 +15,8 @@ entity buffered_uart is
 --      PARITY          : string                    := "NONE";
 --      STOP_BITS       : string                    := "1";
         RTSCTS_ENABLE   : integer range 0 to 1      := 0;
-        RXFIFO_DEPTH    : integer                   := 128;
-        TXFIFO_DEPTH    : integer                   := 128
+        RX_DEPTH_BITS   : integer range 2 to 17     := 7;
+        TX_DEPTH_BITS   : integer range 2 to 17     := 7
     );
     port (
         clk             : in    std_logic;
@@ -414,13 +414,13 @@ begin
     u_rxfifo : scfifo
         generic map (
             add_ram_output_register => "ON",
-            almost_full_value       => RXFIFO_DEPTH / 2,
+            almost_full_value       => 2 ** (RX_DEPTH_BITS - 1),
             intended_device_family  => DEVICE_FAMILY,
-            lpm_numwords            => RXFIFO_DEPTH,
+            lpm_numwords            => 2 ** RX_DEPTH_BITS,
             lpm_showahead           => "OFF",
             lpm_type                => "scfifo",
             lpm_width               => DATA_BITS,
-            lpm_widthu              => DATA_BITS,
+            lpm_widthu              => RX_DEPTH_BITS,
             overflow_checking       => "ON",
             underflow_checking      => "ON",
             use_eab                 => "ON"
@@ -561,13 +561,13 @@ begin
     u_txfifo : scfifo
         generic map (
             add_ram_output_register => "OFF",
-            almost_empty_value      => TXFIFO_DEPTH / 2,
+            almost_empty_value      => 2 ** (TX_DEPTH_BITS - 1),
             intended_device_family  => DEVICE_FAMILY,
-            lpm_numwords            => TXFIFO_DEPTH,
+            lpm_numwords            => 2 ** TX_DEPTH_BITS,
             lpm_showahead           => "OFF",
             lpm_type                => "scfifo",
             lpm_width               => DATA_BITS,
-            lpm_widthu              => DATA_BITS,
+            lpm_widthu              => TX_DEPTH_BITS,
             overflow_checking       => "ON",
             underflow_checking      => "ON",
             use_eab                 => "ON"
