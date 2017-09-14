@@ -40,13 +40,13 @@ end entity;
 -- Register map
 --
 -- 0: STATUS
---        +----+----+----+----+----+----+----+----+----+----+
---        | 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |    |
---        +----+----+----+----+----+----+----+----+----+----+
---    R   |RXE |RXNE|RXF |RXHF|TXF |TXNF|TXE |TXHE|ROVF|    |
---        +----+----+----+----+----+----+----+----+----+----+
---    W   |                                       |ROVF|    |
---        +---------------------------------------+----+----+
+--        +----+----+----+----+----+----+----+----+----+----+----+
+--        | 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |    |  1 |
+--        +----+----+----+----+----+----+----+----+----+----+----+
+--    R   |RXE |RXNE|RXF |RXHF|TXF |TXNF|TXE |TXHE|ROVF|    |    |
+--        +----+----+----+----+----+----+----+----+----+----+----+
+--    W   |                                       |ROVF|    |CLR |
+--        +---------------------------------------+----+----+----+
 --
 -- 1: INTR
 --        +----+----+----+----+----+----+----+----+----+--+----+
@@ -80,6 +80,7 @@ architecture rtl of buffered_uart is
     signal rsel_dat_sig     : boolean;
     signal rsel_div_sig     : boolean;
     signal avs_read_1d_reg  : std_logic := '0';
+    signal fifo_clr_sig     : std_logic;
 
     signal rval_sts_sig : std_logic_vector(15 downto 0);
     signal rval_int_sig : std_logic_vector(15 downto 0);
@@ -168,6 +169,9 @@ begin
         txf_sig & txnf_sig & txe_sig & txhe_sig &
         rx_ovf_reg & "000" &
         "0000";
+
+    -- FIFO clear
+    fifo_clr_sig <= avs_writedata(1) when (rsel_sts_sig and avs_write = '1') else '0';
 
     -- Interrupt mask bits
     process (clk, reset)
@@ -427,6 +431,7 @@ begin
         )
         port map (
             aclr            => reset,
+            sclr            => fifo_clr_sig,
             clock           => clk,
             data            => rx_wdata_sig,
             rdreq           => rx_rreq_sig,
@@ -574,6 +579,7 @@ begin
         )
         port map (
             aclr            => reset,
+            sclr            => fifo_clr_sig,
             clock           => clk,
             data            => tx_wdata_sig,
             wrreq           => tx_wreq_sig,
