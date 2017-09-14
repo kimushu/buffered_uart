@@ -199,7 +199,7 @@ begin
         '0' & irxne_reg & irxf_reg & irxhf_reg &
         '0' & itxnf_reg & itxe_reg & itxhe_reg &
         irovf_reg & "000" &
-        "0000";
+        "000" & irqe_reg;
 
     -- Interrupt sending
     irq_sig <=
@@ -212,7 +212,7 @@ begin
         (irovf_reg = '1' and rx_ovf_reg = '1');
     ins_irq <=
         '0' when (irqe_reg = '0') else
-        '0' when irq_sig else '1';
+        '1' when irq_sig else '0';
 
     -- Data read
     rval_dat_sig(15) <= rxe_1d_reg;
