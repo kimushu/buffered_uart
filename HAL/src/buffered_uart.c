@@ -18,12 +18,18 @@ static void buffered_uart_irq(void *context, alt_u32 id)
 
 void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_id, alt_u32 irq)
 {
-    int error = ALT_SEM_CREATE(&sp->sem, 0);
+    int error;
+
+    // Initialize sync object
+    error = ALT_SEM_CREATE(&sp->sem, 0);
 
     if (!error) {
+        // Clear buffer
+        IOWR_BUFFERED_UART_STATUS(sp->base, BUFFERED_UART_STATUS_CLR_MSK);
+
         // Register interrupt handler
 #ifdef ALT_ENHANCED_INTERRUPT_API_PRESENT
-        alt_ic_isr_register(irq_controller_id, irq, buffered_uart_irq, sp, 0x0);
+        alt_ic_isr_register(irq_controller_id, irq, buffered_uart_irq, sp, NULL);
 #else
         alt_irq_register(irq, sp, buffered_uart_irq);
 #endif
@@ -83,11 +89,11 @@ int buffered_uart_read(buffered_uart_state *sp, char *ptr, int len, int flags)
 
             do {
                 ALT_SEM_PEND(sp->sem, 0);
-            } while ((sp->causes & BUFFERED_UART_STATUS_RXNE_MSK));
+            } while ((sp->causes & BUFFERED_UART_STATUS_RXNE_MSK) == 0);
         } else {
-            *ptr++ = (data & 0xff);
+            *((alt_u8 *)ptr++) = (data & 0xff);
             if (paired) {
-                *ptr++ = (data >> 8);
+                *((alt_u8 *)ptr++) = (data >> 8);
             }
             --len;
             ++actual;
@@ -112,9 +118,9 @@ int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int f
         context = alt_irq_disable_all();
         status = IORD_BUFFERED_UART_STATUS(base);
         if ((status & BUFFERED_UART_STATUS_TXF_MSK) == 0) {
-            alt_u16 value = *ptr++;
+            alt_u16 value = *((alt_u8 *)ptr++);
             if (paired) {
-                value |= (*ptr++) << 8;
+                value |= *((alt_u8 *)ptr++) << 8;
             }
             IOWR_BUFFERED_UART_DATA(base, value);
             alt_irq_enable_all(context);
@@ -133,7 +139,7 @@ int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int f
 
             do {
                 ALT_SEM_PEND(sp->sem, 0);
-            } while ((sp->causes & BUFFERED_UART_STATUS_TXNF_MSK));
+            } while ((sp->causes & BUFFERED_UART_STATUS_TXNF_MSK) == 0);
         }
     }
 
