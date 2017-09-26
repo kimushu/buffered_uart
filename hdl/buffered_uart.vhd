@@ -226,9 +226,6 @@ begin
     -- ================================================================
     --   Divider
     -- ================================================================
-    fixed_div: if (DIVIDER_FIXED = 1) generate
-        div_max_reg <= DIVIDER_INIT;
-    end generate;
     variable_div: if (DIVIDER_FIXED = 0) generate
         process (clk, reset)
         begin

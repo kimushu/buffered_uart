@@ -17,8 +17,8 @@ architecture behavior of test_buffered_uart is
     --      PARITY          : string                    := "NONE";
     --      STOP_BITS       : string                    := "1";
             RTSCTS_ENABLE   : integer range 0 to 1      := 0;
-            RXFIFO_DEPTH    : integer                   := 128;
-            TXFIFO_DEPTH    : integer                   := 128
+            RX_DEPTH_BITS   : integer range 2 to 17     := 7;
+            TX_DEPTH_BITS   : integer range 2 to 17     := 7
         );
         port (
             clk             : in    std_logic;
@@ -265,8 +265,8 @@ begin
             DIVIDER_FIXED   => 0,
             DATA_BITS       => 8,
             RTSCTS_ENABLE   => 1,
-            RXFIFO_DEPTH    => 4,
-            TXFIFO_DEPTH    => 8
+            RX_DEPTH_BITS   => 2,
+            TX_DEPTH_BITS   => 3
         )
         port map (
             clk             => clk1_reg,
@@ -294,8 +294,8 @@ begin
             DIVIDER_FIXED   => 0,
             DATA_BITS       => 8,
             RTSCTS_ENABLE   => 1,
-            RXFIFO_DEPTH    => 4,
-            TXFIFO_DEPTH    => 8
+            RX_DEPTH_BITS   => 2,
+            TX_DEPTH_BITS   => 3
         )
         port map (
             clk             => clk2_reg,

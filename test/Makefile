@@ -11,7 +11,11 @@ test: compile
 
 .PHONY: wave
 wave:
+	vsim test_$(TOP_MODULE) -do wave.do
 
 work:
 	vlib work
 
+.PHONY: clean
+clean:
+	rm -rf work
