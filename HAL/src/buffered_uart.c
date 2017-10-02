@@ -76,11 +76,12 @@ int buffered_uart_read(buffered_uart_state *sp, char *ptr, int len, int flags)
         alt_u16 data = IORD_BUFFERED_UART_DATA(base);
 
         if (data & BUFFERED_UART_DATA_RXE_MSK) {
-            if (flags & O_NONBLOCK) {
-                if (actual == 0) {
+            if (actual > 0) {
+                break;
+            } else {
+                if (flags & O_NONBLOCK) {
                     return -EWOULDBLOCK;
                 }
-                break;
             }
             context = alt_irq_disable_all();
             sp->causes &= ~BUFFERED_UART_STATUS_RXNE_MSK;
