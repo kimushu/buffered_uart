@@ -11,9 +11,17 @@ static void buffered_uart_irq(void *context, alt_u32 id)
 {
     buffered_uart_state *sp = (buffered_uart_state *)context;
     alt_u32 base = sp->base;
+    alt_irq_context irq_context;
+    int i;
+
     sp->causes |= (IORD_BUFFERED_UART_STATUS(base) & BUFFERED_UART_STATUS_CAUSES_MSK);
     IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) & ~(sp->causes));
-    ALT_SEM_POST(sp->sem);
+
+    irq_context = alt_irq_disable_all();
+    for (i = sp->waiters; i > 0; --i) {
+        ALT_SEM_POST(sp->sem);
+    }
+    alt_irq_enable_all(irq_context);
 }
 
 void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_id, alt_u32 irq)
@@ -53,11 +61,16 @@ int buffered_uart_close(buffered_uart_state *sp, int flags)
     context = alt_irq_disable_all();
     sp->causes &= ~BUFFERED_UART_STATUS_TXE_MSK;
     IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) | BUFFERED_UART_INTR_TXE_MSK);
+    ++sp->waiters;
     alt_irq_enable_all(context);
 
     do {
         ALT_SEM_PEND(sp->sem, 0);
     } while ((sp->causes & BUFFERED_UART_STATUS_TXE_MSK) == 0);
+
+    context = alt_irq_disable_all();
+    --sp->waiters;
+    alt_irq_enable_all(context);
 
     return 0;
 }
@@ -86,11 +99,16 @@ int buffered_uart_read(buffered_uart_state *sp, char *ptr, int len, int flags)
             context = alt_irq_disable_all();
             sp->causes &= ~BUFFERED_UART_STATUS_RXNE_MSK;
             IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) | BUFFERED_UART_INTR_RXNE_MSK);
+            ++sp->waiters;
             alt_irq_enable_all(context);
 
             do {
                 ALT_SEM_PEND(sp->sem, 0);
             } while ((sp->causes & BUFFERED_UART_STATUS_RXNE_MSK) == 0);
+
+            context = alt_irq_disable_all();
+            --sp->waiters;
+            alt_irq_enable_all(context);
         } else {
             *((alt_u8 *)ptr++) = (data & 0xff);
             if (paired) {
@@ -136,11 +154,16 @@ int buffered_uart_write(buffered_uart_state *sp, const char *ptr, int len, int f
         } else {
             sp->causes &= ~BUFFERED_UART_STATUS_TXNF_MSK;
             IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) | BUFFERED_UART_INTR_TXNF_MSK);
+            ++sp->waiters;
             alt_irq_enable_all(context);
 
             do {
                 ALT_SEM_PEND(sp->sem, 0);
             } while ((sp->causes & BUFFERED_UART_STATUS_TXNF_MSK) == 0);
+
+            context = alt_irq_disable_all();
+            --sp->waiters;
+            alt_irq_enable_all(context);
         }
     }
 
