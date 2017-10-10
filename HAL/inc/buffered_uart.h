@@ -14,7 +14,7 @@ typedef struct buffered_uart_state_s {
     alt_u16 dataMask;
     volatile alt_u16 causes;
     ALT_SEM(sem);
-    int waiters;
+    volatile int waiters;
 } buffered_uart_state;
 
 #ifndef ALT_USE_DIRECT_DRIVERS
