@@ -12,9 +12,9 @@ extern "C" {
 typedef struct buffered_uart_state_s {
     alt_u32 base;
     alt_u16 dataMask;
-    volatile alt_u16 causes;
-    ALT_SEM(sem);
-    volatile int waiters;
+    ALT_SEM(sem_read);
+    ALT_SEM(sem_write);
+    ALT_SEM(sem_close);
 } buffered_uart_state;
 
 #ifndef ALT_USE_DIRECT_DRIVERS
