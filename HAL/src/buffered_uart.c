@@ -1,6 +1,7 @@
 #include "buffered_uart.h"
 #include "buffered_uart_regs.h"
 #include "sys/alt_irq.h"
+#include "os/alt_flag.h"
 #include <fcntl.h>
 
 #ifdef ALT_ENHANCED_INTERRUPT_API_PRESENT
@@ -11,59 +12,44 @@ static void buffered_uart_irq(void *context, alt_u32 id)
 {
     buffered_uart_state *sp = (buffered_uart_state *)context;
     alt_u32 base = sp->base;
-    alt_irq_context irq_context;
-    int i;
+    alt_u32 causes = IORD_BUFFERED_UART_STATUS(base) & BUFFERED_UART_STATUS_CAUSES_MSK;
+    IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) & ~causes);
 
-    sp->causes |= (IORD_BUFFERED_UART_STATUS(base) & BUFFERED_UART_STATUS_CAUSES_MSK);
-    IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) & ~(sp->causes));
-
-    irq_context = alt_irq_disable_all();
-    for (i = sp->waiters; i > 0; --i) {
-        ALT_SEM_POST(sp->sem);
-    }
-    alt_irq_enable_all(irq_context);
+    ALT_FLAG_POST(sp->flags, causes, OS_FLAG_SET);
 }
 
 static void buffered_uart_wait(buffered_uart_state *sp, alt_irq_context context, int trigger)
 {
     alt_u32 base = sp->base;
 
-    sp->causes &= ~trigger;
-    IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) | trigger);
-    ++sp->waiters;
-    alt_irq_enable_all(context);
+    for (;;) {
+        IOWR_BUFFERED_UART_INTR(base, IORD_BUFFERED_UART_INTR(base) | trigger);
+        alt_irq_enable_all(context);
 
-    do {
-        ALT_SEM_PEND(sp->sem, 0);
-    } while ((sp->causes & trigger) == 0);
-
-    context = alt_irq_disable_all();
-    --sp->waiters;
-    alt_irq_enable_all(context);
+        ALT_FLAG_PEND(sp->flags, trigger, OS_FLAG_WAIT_SET_ALL + OS_FLAG_CONSUME, 0);
+        if (IORD_BUFFERED_UART_STATUS(base) & trigger) {
+            break;
+        }
+        context = alt_irq_disable_all();
+    }
 }
 
 void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_id, alt_u32 irq)
 {
-    int error;
+    ALT_FLAG_CREATE(&sp->flags, 0);
 
-    // Initialize sync object
-    error = ALT_SEM_CREATE(&sp->sem, 0);
-    sp->waiters = 0;
+    // Clear buffer
+    IOWR_BUFFERED_UART_STATUS(sp->base, BUFFERED_UART_STATUS_CLR_MSK);
 
-    if (!error) {
-        // Clear buffer
-        IOWR_BUFFERED_UART_STATUS(sp->base, BUFFERED_UART_STATUS_CLR_MSK);
-
-        // Register interrupt handler
+    // Register interrupt handler
 #ifdef ALT_ENHANCED_INTERRUPT_API_PRESENT
-        alt_ic_isr_register(irq_controller_id, irq, buffered_uart_irq, sp, NULL);
+    alt_ic_isr_register(irq_controller_id, irq, buffered_uart_irq, sp, NULL);
 #else
-        alt_irq_register(irq, sp, buffered_uart_irq);
+    alt_irq_register(irq, sp, buffered_uart_irq);
 #endif
 
-        // Enable interrupt
-        IOWR_BUFFERED_UART_INTR(sp->base, BUFFERED_UART_INTR_IRQE_MSK);
-    }
+    // Enable interrupt
+    IOWR_BUFFERED_UART_INTR(sp->base, BUFFERED_UART_INTR_IRQE_MSK);
 }
 
 int buffered_uart_close(buffered_uart_state *sp, int flags)
