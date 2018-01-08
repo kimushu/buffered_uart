@@ -57,6 +57,34 @@ void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_id, alt_
     IOWR_BUFFERED_UART_INTR(sp->base, BUFFERED_UART_INTR_IRQE_MSK);
 }
 
+int buffered_uart_set_baudrate(buffered_uart_state *sp, int baudrate)
+{
+    alt_u32 divider_p1;
+
+    if (baudrate <= 0) {
+        // Invalid baudrate
+        return EINVAL;
+    }
+
+    if (sp->baudCoef == 0) {
+        // Baudrate is fixed
+        return ENOTSUP;
+    }
+
+    divider_p1 = sp->baudCoef / baudrate;
+    if (divider_p1 >= (1 << (sp->divBits_m1 + 1))) {
+        // Baudrate is too small
+        return ERANGE;
+    }
+    if (divider_p1 == 0) {
+        // Baudrate is too big
+        return ERANGE;
+    }
+
+    IOWR_BUFFERED_UART_DIVIDER(sp->base, (divider_p1 - 1));
+    return 0;
+}
+
 int buffered_uart_close(buffered_uart_state *sp, int flags)
 {
     alt_u32 base = sp->base;

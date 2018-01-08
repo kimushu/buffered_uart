@@ -330,6 +330,7 @@ proc elaboration_callback {} {
 set_module_property VALIDATION_CALLBACK validate_callback
 proc validate_callback {} {
     # Define macros for BSP
+    set_module_assignment embeddedsw.CMacro.CLOCK_FREQ [get_parameter_value CLOCK_FREQ]
     set_module_assignment embeddedsw.CMacro.DATA_BITS [get_parameter_value DATA_BITS]
     set_module_assignment embeddedsw.CMacro.DIVIDER_BITS [get_parameter_value DIVIDER_BITS]
     set_module_assignment embeddedsw.CMacro.FIXED_BAUD [get_parameter_value DIVIDER_FIXED]

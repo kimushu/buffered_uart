@@ -12,6 +12,8 @@ extern "C" {
 typedef struct buffered_uart_state_s {
     alt_u32 base;
     alt_u16 dataMask;
+    alt_u32 divBits_m1 : 4;
+    alt_u32 baudCoef : 28;
     ALT_SEM(sem_read);
     ALT_SEM(sem_write);
     ALT_SEM(sem_close);
@@ -32,12 +34,14 @@ extern int buffered_uart_ioctl_fd(alt_fd *fd, int req, void *arg);
 #endif  /* !ALT_USE_DIRECT_DRIVERS */
 
 extern void buffered_uart_init(buffered_uart_state *sp, alt_u32 irq_controller_id, alt_u32 irq);
+extern int buffered_uart_set_baudrate(buffered_uart_state *sp, int baudrate);
 
 #define BUFFERED_UART_STATE_INSTANCE_INITIALIZER(name) \
     { \
         name##_BASE, \
         (1 << name##_DATA_BITS) - 1, \
-        0, \
+        name##_DIVIDER_BITS - 1, \
+        (name##_FIXED_BAUD ? 0 : name##_CLOCK_FREQ / 4), \
     }
 
 #define BUFFERED_UART_STATE_INSTANCE(name, state) \
