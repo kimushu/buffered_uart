@@ -23,4 +23,7 @@ add_sw_property include_source inc/buffered_uart_regs.h
 add_sw_property supported_bsp_type HAL
 add_sw_property supported_bsp_type UCOSII
 
+# Software settings
+add_sw_setting boolean_define_only system_h_define guard_write_conflict BUFFERED_UART_GUARD_WRITE_CONFLICT false "Enable guard of write conflicts. This blocks all interrupts during write."
+
 # End of file
